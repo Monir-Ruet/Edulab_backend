@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model user {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  email          String?
+  email_verified Boolean
+  password       String?
+  mobile_number  String?
+  image          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  post           post[]
+  role           role?    @default(BASIC)
+  accountId      String?  @db.ObjectId
+  Account        account?
+
+  @@unique([email])
+}
+
+model account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @unique @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+  user              user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+enum role {
+  BASIC
+  ADMIN
+}
+
+model post {
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  title    String
+  body     String
+  tags     String?
+  author   user    @relation(fields: [authorId], references: [id])
+  authorId String  @db.ObjectId
+  topic    topic   @relation(fields: [topicId], references: [id])
+  topicId  String  @db.ObjectId
+}
+
+model group {
+  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  name     String     @unique
+  subgroup subgroup[]
+}
+
+model subgroup {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  name    String  @unique
+  topic   topic[]
+  group   group   @relation(fields: [groupId], references: [id])
+  groupId String  @db.ObjectId
+}
+
+model topic {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  subgroup   subgroup @relation(fields: [subgroupId], references: [id])
+  subgroupId String   @db.ObjectId
+  post       post[]
+}

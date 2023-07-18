@@ -1,0 +1,84 @@
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+const express_1 = require("express");
+const prismaClient_1 = __importDefault(require("./../Prisma/prismaClient"));
+const passport_1 = __importDefault(require("passport"));
+class Authentication {
+    constructor() {
+        this.path = 'auth';
+        this.router = (0, express_1.Router)();
+        this.initializeRouter();
+    }
+    initializeRouter() {
+        const CLIENT_URL = "http://localhost:3000/";
+        this.router.get("/", passport_1.default.authenticate("google", { scope: ["profile", "email"] }));
+        this.router.get("/callback", passport_1.default.authenticate("google", {
+            session: false,
+            failureRedirect: "/login/failed",
+        }), (req, res) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = req.user;
+                const { accessToken } = data;
+                const { id, provider } = data.profile;
+                const { name, email, email_verified, picture } = data.profile._json;
+                let user;
+                user = yield prismaClient_1.default.account.findUnique({
+                    where: {
+                        provider_providerAccountId: {
+                            provider: "google",
+                            providerAccountId: id
+                        }
+                    }, select: {
+                        providerAccountId: true,
+                        user: {
+                            select: {
+                                email: true,
+                                name: true,
+                                image: true,
+                            }
+                        }
+                    }
+                });
+                if (!user) {
+                    user = yield prismaClient_1.default.user.create({
+                        data: {
+                            name,
+                            email,
+                            "image": picture,
+                            email_verified,
+                            Account: {
+                                create: {
+                                    provider,
+                                    access_token: accessToken,
+                                    providerAccountId: id,
+                                    type: "Bearer",
+                                }
+                            }
+                        }
+                    });
+                }
+                res.cookie('auth_token', GenerateToken(user), {
+                    maxAge: 30 * 24 * 3600,
+                    httpOnly: true,
+                    secure: false,
+                });
+                res.redirect(CLIENT_URL);
+            }
+            catch (err) {
+                res.sendStatus(401);
+            }
+        }));
+    }
+}
+module.exports = Authentication;
