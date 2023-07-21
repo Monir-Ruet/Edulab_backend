@@ -10,6 +10,7 @@ const login_controller_1 = __importDefault(require("@/Routes/Login/login.control
 const authentication_1 = __importDefault(require("@/Routes/Auth/authentication"));
 require("@/Routes/Auth/passport");
 const signup_controllers_1 = __importDefault(require("@/Routes/Signup/signup.controllers"));
-const controller = [login_controller_1.default, authentication_1.default, signup_controllers_1.default];
+const post_controller_1 = __importDefault(require("@/Routes/Post/post.controller"));
+const controller = [login_controller_1.default, authentication_1.default, signup_controllers_1.default, post_controller_1.default];
 const app = new app_1.default(controller, Number(process.env.PORT));
 app.listen();

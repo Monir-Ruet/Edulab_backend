@@ -1,31 +1,32 @@
-// import Joi, { valid } from "joi";
-// import validate from "../Services/validation.service";
+import Joi, { valid } from "joi";
+import validate from "../Services/validation.service";
 
-// const AddSchema=Joi.object({
-//     title:Joi.string().required(),
-//     body:Joi.string().required(),
-//     author:Joi.string().required(),
-//     tags:Joi.array().required()
-// })
+const AddSchema = Joi.object({
+    title: Joi.string().required(),
+    body: Joi.string().required(),
+    subject: Joi.string().required(),
+    chapter: Joi.string().required(),
+    tags: Joi.array().required()
+})
 
-// const FetchSchema=Joi.object({
-//     _id:Joi.string().required()
-// })
+const FetchSchema = Joi.object({
+    titleId: Joi.string().required()
+})
 
-// const EditSchema=Joi.object({
-//     _id:Joi.string().required(),
-//     title:Joi.string().required(),
-//     body:Joi.string().required(),
-//     tags:Joi.array().required()
-// })
+const EditSchema = Joi.object({
+    id: Joi.string().required(),
+    title: Joi.string().required(),
+    body: Joi.string().required(),
+    tags: Joi.array().required()
+})
 
-// let Add=validate(AddSchema);
-// let Fetch=validate(FetchSchema);
-// let Edit=validate(EditSchema);
+let Add = validate(AddSchema);
+let Fetch = validate(FetchSchema);
+let Edit = validate(EditSchema);
 
 
-// export {
-//     Add,
-//     Fetch,
-//     Edit
-// }
+export {
+    Add,
+    Fetch,
+    Edit
+}
