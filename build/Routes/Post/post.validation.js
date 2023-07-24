@@ -1,26 +1,30 @@
 "use strict";
-// import Joi, { valid } from "joi";
-// import validate from "../Services/validation.service";
-// const AddSchema=Joi.object({
-//     title:Joi.string().required(),
-//     body:Joi.string().required(),
-//     author:Joi.string().required(),
-//     tags:Joi.array().required()
-// })
-// const FetchSchema=Joi.object({
-//     _id:Joi.string().required()
-// })
-// const EditSchema=Joi.object({
-//     _id:Joi.string().required(),
-//     title:Joi.string().required(),
-//     body:Joi.string().required(),
-//     tags:Joi.array().required()
-// })
-// let Add=validate(AddSchema);
-// let Fetch=validate(FetchSchema);
-// let Edit=validate(EditSchema);
-// export {
-//     Add,
-//     Fetch,
-//     Edit
-// }
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Edit = exports.Fetch = exports.Add = void 0;
+const joi_1 = __importDefault(require("joi"));
+const validation_service_1 = __importDefault(require("../Services/validation.service"));
+const AddSchema = joi_1.default.object({
+    title: joi_1.default.string().required(),
+    body: joi_1.default.string().required(),
+    subject: joi_1.default.string().required(),
+    chapter: joi_1.default.string().required(),
+    tags: joi_1.default.array().required()
+});
+const FetchSchema = joi_1.default.object({
+    titleId: joi_1.default.string().required()
+});
+const EditSchema = joi_1.default.object({
+    id: joi_1.default.string().required(),
+    title: joi_1.default.string().required(),
+    body: joi_1.default.string().required(),
+    tags: joi_1.default.array().required()
+});
+let Add = (0, validation_service_1.default)(AddSchema);
+exports.Add = Add;
+let Fetch = (0, validation_service_1.default)(FetchSchema);
+exports.Fetch = Fetch;
+let Edit = (0, validation_service_1.default)(EditSchema);
+exports.Edit = Edit;

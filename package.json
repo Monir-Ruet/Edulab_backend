@@ -15,6 +15,7 @@
   "dependencies": {
     "@prisma/client": "^5.0.0",
     "bcrypt": "^5.1.0",
+    "bson": "^5.4.0",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
