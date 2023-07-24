@@ -5,7 +5,6 @@ const AddSchema = Joi.object({
     title: Joi.string().required(),
     body: Joi.string().required(),
     subject: Joi.string().required(),
-    chapter: Joi.string().required(),
     tags: Joi.array().required()
 })
 
@@ -14,7 +13,6 @@ const FetchSchema = Joi.object({
 })
 
 const EditSchema = Joi.object({
-    id: Joi.string().required(),
     title: Joi.string().required(),
     body: Joi.string().required(),
     tags: Joi.array().required()
