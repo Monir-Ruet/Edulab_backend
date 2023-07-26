@@ -3,7 +3,7 @@ import { NextFunction, Router, Request, Response } from "express";
 import { Add, Fetch, Edit } from './post.validation';
 import HttpStatus from "@/Lib/Exception/httpexception"
 import prisma from "@/Lib/Prisma/prismaClient";
-import { ObjectId } from 'bson'
+import { Prisma } from "@prisma/client";
 
 class Post implements Controller {
     path: string;
@@ -16,48 +16,20 @@ class Post implements Controller {
     private initializeRouter() {
         this.router.post('/add', Add, async (req: Request, res: Response, next: NextFunction) => {
             try {
-                let { title, body, subject, chapter, tags } = req.body, titleId
+                let { title, body, subject, tags } = req.body, titleId
                 subject = subject.trim()
-                chapter = chapter.trim()
                 title = title.trim()
                 titleId = title.replace(/\s+/g, '-').toLowerCase();
-                const subjectId = await prisma.subject.findFirst({
-                    where: {
-                        name: subject
-                    },
-                    select: {
-                        id: true
-                    }
-                })
-                let SubjectId;
-                if (!subjectId?.id) SubjectId = new ObjectId().toString()
-                else SubjectId = subjectId.id
+                subject = subject.replace(/\s+/g, '-').toLowerCase();
                 const res = await prisma.post.create({
                     data: {
                         title: title,
                         titleId: titleId,
                         body: body,
                         tags: tags,
-                        chapter: {
-                            connectOrCreate: {
-                                where: {
-                                    subjectId_name: {
-                                        name: chapter,
-                                        subjectId: SubjectId
-                                    }
-                                }, create: {
-                                    name: chapter,
-                                    subject: {
-                                        connectOrCreate: {
-                                            where: {
-                                                name: subject
-                                            },
-                                            create: {
-                                                name: subject
-                                            }
-                                        }
-                                    }
-                                }
+                        subject: {
+                            connect: {
+                                title: subject
                             }
                         }
                     }
@@ -65,33 +37,39 @@ class Post implements Controller {
                 next(new HttpStatus(200, 'New post added successfully'));
             }
             catch (err) {
-                console.log(err)
-                next(new HttpStatus(400, 'Addition of a new post failed.'));
+                if (err instanceof Prisma.PrismaClientKnownRequestError) {
+                    if (err.code == 'P2025') {
+                        return next(new HttpStatus(400, 'Random subjects are not allowed.'))
+                    } else if (err.code == 'P2002') {
+                        return next(new HttpStatus(401, 'There is another post with the same title'))
+                    }
+                }
+                else return next(new HttpStatus(500, 'Addition of a new post failed.'));
             }
         })
 
-        this.router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-            try {
-                let page = parseInt(req.query.page as string), n = 10
-                if (!page) page = 1;
-                const result = await prisma.$transaction([
-                    prisma.post.count(),
-                    prisma.post.findMany({
-                        take: n,
-                        skip: (page - 1) * n,
-                        select: {
-                            titleId: true,
-                            title: true,
-                            tags: true
-                        }
-                    })
-                ])
-                res.send(result);
-            } catch (err) {
-                return next(new HttpStatus(500, 'Something went wrong'))
-            }
+        // this.router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+        //     try {
+        //         let page = parseInt(req.query.page as string), n = 10
+        //         if (!page) page = 1;
+        //         const result = await prisma.$transaction([
+        //             prisma.post.count(),
+        //             prisma.post.findMany({
+        //                 take: n,
+        //                 skip: (page - 1) * n,
+        //                 select: {
+        //                     titleId: true,
+        //                     title: true,
+        //                     tags: true
+        //                 }
+        //             })
+        //         ])
+        //         res.send(result);
+        //     } catch (err) {
+        //         return next(new HttpStatus(500, 'Something went wrong'))
+        //     }
 
-        })
+        // })
         this.router.post('/edit', Edit, async (req: Request, res: Response, next: NextFunction) => {
             try {
                 const { title, body, tags } = req.body;
@@ -109,15 +87,47 @@ class Post implements Controller {
                 })
                 return next(new HttpStatus(200, 'Post updated successfully'));
             }
-            catch (err) {
-                next(err);
+            catch (err: any) {
+                if (err instanceof Prisma.PrismaClientKnownRequestError) {
+                    if (err.code == 'P2002') {
+                        return next(new HttpStatus(401, 'There is another post with the same title'))
+                    }
+                }
+                else return next(new HttpStatus(400, 'Something went wrong.'));
             }
         })
-
+        this.router.get('/search', async (req: Request, res: Response, next: NextFunction) => {
+            try {
+                const qs = req.query.keyword
+                let keyword = qs as string
+                if (!keyword) return res.send([])
+                const result = await prisma.post.findMany({
+                    where: {
+                        title: {
+                            startsWith: keyword,
+                            mode: 'insensitive'
+                        }
+                    },
+                    take: 8,
+                    select: {
+                        title: true,
+                        titleId: true,
+                        subject:{
+                          select:{
+                            title:true
+                          }
+                        }
+                    }
+                })
+                if (!result) return res.json([])
+                else res.json(result)
+            } catch (err) {
+                console.log(err)
+            }
+        })
         this.router.delete('/delete', Fetch, async (req: Request, res: Response, next: NextFunction) => {
             try {
                 const id = req.body.titleId
-                console.log(req.body)
                 if (!id) return next(new HttpStatus(400, 'Please Provide a valid id'));
                 const result = await prisma.post.delete({
                     where: {
@@ -126,14 +136,50 @@ class Post implements Controller {
                 })
                 return next(new HttpStatus(200, 'Post Deletion Successfull'))
             } catch (err) {
-                next(new HttpStatus(400, 'There is no post with this id.'));
+                if (err instanceof Prisma.PrismaClientKnownRequestError) {
+                    if (err.code == 'P2025')
+                        return next(new HttpStatus(400, 'There is no post with this id'))
+                }
+                else return next(new HttpStatus(400, 'Something went wrong'));
             }
         })
 
-        this.router.get('/:titleId', async (req: Request, res: Response, next: NextFunction) => {
+
+        this.router.get('/subjects', async (req: Request, res: Response, next: NextFunction) => {
             try {
-                const titleId = req.params.titleId
-                if (!titleId) return res.send({});
+                let result = await prisma.subject.findMany({
+                    select: {
+                        name: true,
+                    }
+                })
+                res.send(result)
+            } catch (err) {
+                next(new HttpStatus(500, 'Something went wrong'))
+            }
+        })
+        this.router.get('/:subjectId/:titleId', async (req: Request, res: Response, next: NextFunction) => {
+            try {
+                let subjectId = req.params.subjectId, titleId = req.params.titleId;
+                if (titleId == 'default') {
+                    let x = await prisma.subject.findFirst({
+                        where: {
+                            title: subjectId
+                        },
+                        select: {
+                            post: {
+                                orderBy: {
+                                    priority: 'asc'
+                                },
+                                select: {
+                                    titleId: true
+                                }
+                            }
+                        }
+                    })
+                    if (x == null) throw new Error("Subject not found");
+                    else if (!x.post.length) throw new Error("There is no post on this subject");
+                    titleId = x.post[0].titleId;
+                }
                 const result = await prisma.$transaction([
                     prisma.post.count(),
                     prisma.post.findFirst({
@@ -144,24 +190,14 @@ class Post implements Controller {
                             title: true,
                             body: true,
                             tags: true,
-                            chapter: {
+                            subject: {
                                 select: {
                                     name: true,
-                                    subject: {
+                                    post: {
                                         select: {
-                                            name: true,
-                                            chapter: {
-                                                select: {
-                                                    name: true,
-                                                    priority: true,
-                                                    post:{
-                                                        select:{
-                                                            title:true,
-                                                            titleId:true
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            title: true,
+                                            titleId: true,
+                                            priority: true
                                         }
                                     }
                                 }
@@ -169,11 +205,52 @@ class Post implements Controller {
                         }
                     })
                 ])
-                res.send(result);
+                if (result)
+                    res.send(result);
+                else throw new Error("There is no post with this id");
+
+            } catch (err: any) {
+                console.log(err)
+                next(new HttpStatus(err.status | 400, err.message))
             }
-            catch (err) {
-                next(new HttpStatus(400, 'There is no post with this id.'));
-            }
+        })
+        // this.router.get('/:titleId', async (req: Request, res: Response, next: NextFunction) => {
+        //     try {
+        //         const titleId = req.params.titleId
+        //         if (!titleId) return res.send({});
+        // const result = await prisma.$transaction([
+        //     prisma.post.count(),
+        //     prisma.post.findFirst({
+        //         where: {
+        //             titleId: titleId as string
+        //         },
+        //         select: {
+        //             title: true,
+        //             body: true,
+        //             tags: true,
+        //             subject: {
+        //                 select: {
+        //                     name: true,
+        //                     post: {
+        //                         select: {
+        //                             title: true,
+        //                             titleId: true
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     })
+        // ])
+
+        //     }
+        //     catch (err) {
+        //         next(new HttpStatus(400, 'There is no post with this id.'));
+        //     }
+        // })
+
+        this.router.all('/*', (req, res, next) => {
+            next(new HttpStatus(400, "Not found"))
         })
     }
 }
